@@ -1,4 +1,6 @@
 let enabled = 0;
+let tabsIds = []
+let curTabIdx = 0
 
 /*
  * Updates the icon if tab cycling is enabled
@@ -13,26 +15,37 @@ function updateIcon() {
   });
 }
 
+function shuffle(a) {
+  console.log("Shuffling", a.length, "tabs")
+
+  let curr = a.length,  rand
+  while (0 !== curr) {
+    rand = Math.floor(Math.random() * curr)
+    curr--
+    [a[curr], a[rand]] = [a[rand], a[curr]]
+  }
+}
+
 /*
  * Make the next tab active
  */
 function openNextTab() {
   browser.tabs.query({currentWindow: true})
     .then(tabs => {
-      for (let i = 0; i < tabs.length; i++) {
-        const tab = tabs[i];
-        if (tab.active) {
-          let id;
-          if (i + 1 === tabs.length) { // Last tab active, reset cycle
-            id = tabs[0].id;
-          } else { // Make next tab active
-            id = tabs[i + 1].id;
-          }
-          return browser.tabs.update( id, {active:  true });
-        }
+      if (tabsIds.length !== tabs.length) {
+        tabsIds = Array.from(tabs, t => t.id)
+        shuffle(tabsIds)
+        curTabIdx = -1
       }
-      // No active tab found, should not happen
-      return Promise.reject('No active tabs found!');
+
+      curTabIdx = (curTabIdx + 1) % tabsIds.length
+      const newId = tabsIds[curTabIdx];
+      console.log("New tab ===>", curTabIdx, newId)
+
+      if (curTabIdx === tabsIds.length - 1) {
+        shuffle(tabsIds)
+      }
+      return browser.tabs.update( newId, {active:  true });
     });
 }
 
@@ -50,6 +63,8 @@ function toggleTabCycle() {
   } else {
     clearInterval(enabled);
     enabled = 0;
+    tabsIds = []
+    curTabIdx = 0
     updateIcon();
   }
 }
